@@ -1,5 +1,5 @@
 DSL = {
-    'dbname': 'movies',
+    'dbname': 'postgres',
     'user': 'postgres',
     'password': 'password',
     'host': '127.0.0.1',

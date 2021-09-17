@@ -9,10 +9,29 @@ class Person(models.Model):
         DIRECTOR = 2, 'Режиссер'
         WRITER = 3, 'Сценарист'
 
-    uuid = models.UUIDField(verbose_name='UUID', default=uuid4, unique=True)
-    first_name = models.CharField('Имя', max_length=250, blank=True)
-    last_name = models.CharField('Фамилия', max_length=250, blank=True)
-    profession_type = models.CharField('Профессия', max_length=10, choices=Profession.choices)
+    uuid = models.UUIDField(
+        default=uuid4,
+        unique=True,
+        verbose_name='UUID'
+    )
+    first_name = models.CharField(
+        verbose_name='Имя',
+        max_length=250
+    )
+    last_name = models.CharField(
+        max_length=250,
+        blank=True,
+        verbose_name='Фамилия'
+    )
+    profession_type = models.CharField(
+        max_length=10,
+        blank=True,
+        choices=Profession.choices,
+        verbose_name='Профессия',
+    )
+
+    def __str__(self):
+        return f"{self.first_name}"
 
     class Meta:
         verbose_name = 'person'

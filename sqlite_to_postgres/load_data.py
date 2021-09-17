@@ -1,6 +1,9 @@
 import json
 import sqlite3
 from dataclasses import astuple
+from pprint import pprint
+from typing import List
+
 import psycopg2
 from psycopg2.extensions import connection as _connection
 from psycopg2.extras import DictCursor
@@ -62,7 +65,7 @@ class SQLiteLoader:
             self.writers[writer.name] = writer
         return writer
 
-    def _get_actor(self, movie: Movies):
+    def _get_actor(self, movie: Movies) -> List:
         result = self.cur.execute(
             "select actor_id from movie_actors where movie_id = :movie_id",
             dict(movie_id=movie.id))
@@ -85,6 +88,7 @@ class SQLiteLoader:
             return
         result = list()
         for actor in actors:
+            pprint(actor[0])
             person = Person(name=actor[0])
             person.id = str(person.id)
             # используем словарь чтобы не создавать в дальнейшем дубли
@@ -95,7 +99,7 @@ class SQLiteLoader:
                 result.append(person)
         return result
 
-    def _get_genres(self, movie: Movies):
+    def _get_genres(self, movie: Movies) -> List:
         result = list()
         genres = [genre.replace(' ', '') for genre in movie.genre.split(',')]
         for genre in set(genres):
@@ -107,6 +111,7 @@ class SQLiteLoader:
             else:
                 self.genre[genre.name] = genre
                 result.append(genre)
+
         return result
 
     def load_movies(self):
@@ -239,10 +244,10 @@ def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
     sqlite_loader = SQLiteLoader(connection)
 
     data = sqlite_loader.load_movies()
-    postgres_saver.save_all_data(data)
+    # postgres_saver.save_all_data(data)
 
 
 if __name__ == '__main__':
-    with sqlite3.connect('db.sqlite') as sqlite_conn, psycopg2.connect(**DSL,
-                                                                       cursor_factory=DictCursor) as pg_conn:
+    with sqlite3.connect('db.sqlite') as sqlite_conn, \
+            psycopg2.connect(**DSL, cursor_factory=DictCursor) as pg_conn:
         load_from_sqlite(sqlite_conn, pg_conn)

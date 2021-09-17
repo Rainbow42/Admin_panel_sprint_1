@@ -14,6 +14,9 @@ class Genre(TimeStampedMixin, models.Model):
     name = models.CharField(_('title'), max_length=255)
     description = models.TextField(_('description'), blank=True)
 
+    def __str__(self):
+        return str(self.name)
+
     class Meta:
         verbose_name = _('genre')
         verbose_name_plural = _('genres')

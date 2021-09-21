@@ -1,11 +1,19 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from typing import List
 
+import uuid as uuid
+
 
 @dataclass
-class Actors:
-    id: int
+class FilmRoles:
+    name: str
+    id: str = field(default_factory=uuid.uuid4)
+
+
+@dataclass
+class Directions:
+    uuid: uuid.UUID
     name: str
 
 
@@ -18,15 +26,15 @@ class MoviesActors:
 @dataclass
 class Movies:
     genre: List
-    director: str
+    director: List[FilmRoles]
     writer: str
     plot: str
     title: str
     ratings: str
     imdb_rating: str
-    writers: List[dict]
+    writers: List[FilmRoles]
     id: str
-    actors: List[Actors] = None
+    actors: List[FilmRoles] = None
 
 
 @dataclass
@@ -37,5 +45,5 @@ class RatingAgency:
 
 @dataclass
 class Writers:
-    id: str
+    uuid: uuid.UUID
     name: str

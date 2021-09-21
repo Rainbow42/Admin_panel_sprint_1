@@ -1,34 +1,38 @@
 CREATE SCHEMA IF NOT EXISTS content;
 SET search_path TO content,public;
 
+
+CREATE TYPE type_movie AS ENUM ('series', 'film');
+CREATE TYPE type_person AS ENUM ('directions', 'actors', 'writers');
+
 CREATE TABLE IF NOT EXISTS content.person(
     id uuid PRIMARY KEY,
-    name TEXT NOT NULL
+    first_name character varying(255) NOT NULL,
+    last_name character varying(255),
+    patronymic character varying(255),
+    birthdate DATE  NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS content.film_work_person (
+CREATE TABLE IF NOT EXISTS content.film_work_persons_type (
     id integer PRIMARY KEY,
     film_work_id uuid NOT NULL,
-    person_id uuid NOT NULL
+    person_id uuid NOT NULL,
+    type_person type_person NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS content.film_work (
     id uuid PRIMARY KEY,
     title character varying(255) NOT NULL,
-    plot TEXT,
-    director TEXT,
+    description TEXT,
     imdb_rating FLOAT,
-    ratings varchar
+    ratings varchar,
+    type type_movie NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS content.rating_agency (
-    id uuid PRIMARY KEY,
-    name character varying(255) NOT NULL
-);
 
 CREATE TABLE IF NOT EXISTS content.genre (
     id uuid PRIMARY KEY,
-    name character varying(255) NOT NULL
+    title character varying(255) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS content.film_work_genre (
@@ -37,33 +41,11 @@ CREATE TABLE IF NOT EXISTS content.film_work_genre (
     genre_id uuid NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS content.writer (
-    id uuid PRIMARY KEY,
-    name TEXT
-);
-
-CREATE TABLE IF NOT EXISTS content.film_work_writers (
-    id integer PRIMARY KEY,
-    film_work_id uuid NOT NULL,
-    writer_id uuid NOT NULL
-);
-
-CREATE SEQUENCE content.film_work_person_id_seq
-	AS integer;
-
-ALTER TABLE content.film_work_person ALTER column id SET default nextval('content.film_work_person_id_seq'::regclass);
-
-ALTER SEQUENCE content.film_work_person_id_seq owned BY content.film_work_person.id;
-
-CREATE SEQUENCE content.film_work_writers_id_seq AS integer;
-
-ALTER TABLE content.film_work_writers ALTER column id SET default nextval('content.film_work_writers_id_seq'::regclass);
-
-ALTER SEQUENCE content.film_work_writers_id_seq owned BY content.film_work_writers.id;
-
+CREATE SEQUENCE content.film_work_person_id_seq AS integer;
 CREATE SEQUENCE content.film_work_genre_id_seq AS integer;
 
-ALTER TABLE content.film_work_genre ALTER column id set default nextval('content.film_work_genre_id_seq'::regclass);
-
+ALTER SEQUENCE content.film_work_person_id_seq owned BY content.film_work_persons_type.id;
 ALTER SEQUENCE content.film_work_genre_id_seq owned BY content.film_work_genre.id;
 
+ALTER TABLE content.film_work_persons_type ALTER column id SET default nextval('content.film_work_person_id_seq'::regclass);
+ALTER TABLE content.film_work_genre ALTER column id set default nextval('content.film_work_genre_id_seq'::regclass);

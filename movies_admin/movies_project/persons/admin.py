@@ -3,12 +3,14 @@ from django.contrib import admin
 from persons.models import Person
 
 
-class PersonAdmin(admin.ModelAdmin):
+@admin.register(Person)
+class Person(admin.ModelAdmin):
     list_display = (
-        'uuid', 'first_name', 'last_name', 'profession_type',
+        'id', 'first_name', 'last_name', 'patronymic', 'birthdate'
     )
-    list_filter = ('profession_type', )
-    search_fields = ('title', )
+    readonly_fields = ('id',)
+    search_fields = ('first_name', 'last_name', 'patronymic')
+    fields = (
+        'id', 'first_name', 'last_name', 'patronymic', 'birthdate'
+    )
 
-
-admin.site.register(Person, PersonAdmin)

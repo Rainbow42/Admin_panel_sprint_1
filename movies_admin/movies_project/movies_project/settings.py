@@ -9,7 +9,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -19,9 +18,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'persons',
-    'series',
+    'movies',
     'users',
-    'movies'
+
 ]
 
 MIDDLEWARE = [
@@ -54,7 +53,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'movies_project.wsgi.application'
 
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -64,11 +62,10 @@ DATABASES = {
         'HOST': os.getenv('PG_HOST', 'localhost'),
         'PORT': os.getenv('PH_PORT', '5432'),
         'OPTIONS': {
-           'options': '-c search_path=content,public'
+            'options': '-c search_path=content,public'
         }
     }
 }
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -85,7 +82,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 LANGUAGE_CODE = 'ru-ru'
 
 TIME_ZONE = 'UTC'
@@ -96,8 +92,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 STATIC_URL = '/static/'
-
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

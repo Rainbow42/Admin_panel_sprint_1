@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS content.film_work (
     title character varying(255) NOT NULL,
     description TEXT,
     imdb_rating FLOAT,
-    ratings varchar,
+    ratings INT,
     type type_movie NOT NULL
 );
 

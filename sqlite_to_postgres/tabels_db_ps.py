@@ -17,7 +17,7 @@ class FilmWork:
     title: str
     description: str
     imdb_rating: float
-    ratings: str
+    ratings: int
     type: str
     id: uuid.UUID = field(default_factory=uuid.uuid4)
 

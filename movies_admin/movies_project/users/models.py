@@ -59,9 +59,10 @@ class Users(AbstractBaseUser):
         return f"{self.username}"
 
     class Meta:
+        index_together = ['first_name', 'last_name', 'username']
         verbose_name = 'user'
         verbose_name_plural = 'users'
-        db_table = "content.users"
+        db_table = '"content"."users"'
 
     def __unicode__(self):
         if self.last_name and self.first_name:

@@ -30,8 +30,8 @@ class Movies:
     writer: str
     plot: str
     title: str
-    ratings: str
-    imdb_rating: str
+    ratings: int
+    imdb_rating: float
     writers: List[FilmRoles]
     id: str
     actors: List[FilmRoles] = None

@@ -146,9 +146,10 @@ class SQLiteLoader:
             result.append(person)
         return result
 
-    def load_movies(self):
-        result = self.cur.execute("select * from movies;")
+    def load_movies(self, limit: int, offset: int) -> List[Movies]:
+        result = self.cur.execute("select * from movies limit :limit offset :offset", dict(limit=limit, offset=offset))
         movies = list()
+
         for rows in result.fetchall():
             movie = Movies(
                 id=rows[0],
@@ -183,7 +184,7 @@ class PostgresSaver:
     actors_person = list()
     direction_person = list()
 
-    actors_film = list()
+    actors_film = list()  # aтрибуты для m2m
     genre_film = list()
     writer_film = list()
     direction_film = list()
@@ -191,13 +192,13 @@ class PostgresSaver:
     def __init__(self, pg_conn: _connection):
         self.cur = pg_conn.cursor()
 
-    def _processing_data(self, data: list):
+    def _processing_data(self, data: List) -> None:
         for movie in data:
             # так как данные ненормальзирваные
             # и могут встречаться строки вида ('N/A')
             film = FilmWork(
                 title=movie.title,
-                type='film',
+                type='series',
                 description=None if movie.plot == 'N/A' else movie.plot,
                 ratings=None if movie.ratings == 'N/A' else movie.ratings,
                 imdb_rating=None if movie.imdb_rating == 'N/A' else float(
@@ -244,16 +245,17 @@ class PostgresSaver:
             if movie.director:
                 self.direction_person.extend(movie.director)
 
-    def _insert_film(self):
+    def _insert_film(self) -> None:
         for film in self.film_work:
             insert = """
                 INSERT INTO content.film_work(title, description, imdb_rating, ratings, type, id)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
             """
+            film.ratings = None
             self.cur.execute(insert, astuple(film))
 
-    def _insert_persons(self, persons: List[Person]):
+    def _insert_persons(self, persons: List[Person]) -> None:
         for person in persons:
             insert = """
                 INSERT INTO content.person(first_name, last_name, patronymic, birthdate, id)
@@ -262,7 +264,7 @@ class PostgresSaver:
             """
             self.cur.execute(insert, astuple(person))
 
-    def _insert_film_person(self):
+    def _insert_film_person(self) -> None:
         film_persons = [*self.actors_film,
                         *self.writer_film,
                         *self.direction_film]
@@ -274,7 +276,7 @@ class PostgresSaver:
             """
             self.cur.execute(insert, astuple(person))
 
-    def _insert_genre(self):
+    def _insert_genre(self) -> None:
         for genre in self.genre:
             insert = """
                 INSERT INTO content.genre(title, id)
@@ -308,9 +310,10 @@ class PostgresSaver:
             normalization.append(person)
         return normalization
 
-    def TRUNCATE(self):
-        for i in ["film_work", "film_work_genre", "film_work_persons_type","genre", "person"]:
-            self.cur.execute("TRUNCATE content.{} CASCADE;".format(i))
+    def truncate(self):
+        for table in ["film_work", "film_work_genre", "film_work_persons_type",
+                      "genre", "person"]:
+            self.cur.execute("TRUNCATE content.{} CASCADE;".format(table))
 
     def save_all_data(self, data: list):
         self._processing_data(data)
@@ -320,7 +323,6 @@ class PostgresSaver:
         self._insert_persons(persons)
         self._insert_film_person()
         self._insert_genre()
-        # self.TRUNCATE()
 
 
 def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
@@ -328,8 +330,16 @@ def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
     postgres_saver = PostgresSaver(pg_conn)
     sqlite_loader = SQLiteLoader(connection)
 
-    data = sqlite_loader.load_movies()
-    postgres_saver.save_all_data(data)
+    cur = connection.cursor()
+    cur.execute("select count(*) from movies")
+    movies_count, = cur.fetchone()
+
+    limit = 100
+    for total in range(0, movies_count, 100):
+        offset = total
+        data = sqlite_loader.load_movies(limit=limit, offset=offset)
+        postgres_saver.save_all_data(data)
+        limit += 100
 
 
 if __name__ == '__main__':

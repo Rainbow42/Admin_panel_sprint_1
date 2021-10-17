@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
@@ -6,6 +8,7 @@ from django.utils import timezone
 
 
 class Users(AbstractBaseUser):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     username = models.CharField(
         'Имя пользователя',
         max_length=150,
@@ -65,6 +68,6 @@ class Users(AbstractBaseUser):
         db_table = '"content"."users"'
 
     def __unicode__(self):
-        if self.last_name and self.first_name:
+        if self.last_name and self.first_name and self.username:
             return f'{self.last_name} {self.first_name} ({self.username})'
         return str(self.username)

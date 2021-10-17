@@ -62,7 +62,7 @@ DATABASES = {
         'HOST': os.getenv('PG_HOST', 'localhost'),
         'PORT': os.getenv('PH_PORT', '5432'),
         'OPTIONS': {
-            'options': '-c search_path=content,public'
+            'options': '-c search_path=public,content'
         }
     }
 }

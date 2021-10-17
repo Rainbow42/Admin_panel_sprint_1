@@ -1,34 +1,37 @@
 from django.contrib import admin
-
-from movies.models import Filmwork, Genre
+from movies.models import FilmWork, Genre
 
 
 class PersonInstanceInline(admin.TabularInline):
-    model = Filmwork.person.through
+    model = FilmWork.person.through
 
 
 class GenreInstanceInline(admin.TabularInline):
-    model = Filmwork.genre.through
+    model = FilmWork.genre.through
 
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
     readonly_fields = ('id',)
     list_display = (
-        'id', 'title',
+        'id', 'name', 'description', 'created_at', 'updated_at'
     )
-    search_fields = ('title',)
+    search_fields = ('name',)
 
 
-@admin.register(Filmwork)
-class FikmworkAdmin(admin.ModelAdmin):
+@admin.register(FilmWork)
+class FilmWorkAdmin(admin.ModelAdmin):
     inlines = [PersonInstanceInline, GenreInstanceInline]
     readonly_fields = ('id',)
     list_display = (
-        'id', 'title', 'description', 'ratings', 'age_censor', 'file_path', 'type'
+        'id', 'title', 'description', 'rating', 'certificate', 'file_path', 'type'
     )
-    list_filter = ('ratings', 'age_censor', 'type')
+    fields = (
+        'id', 'title', 'description', 'rating', 'certificate', 'file_path',
+        'type', 'created_at', 'updated_at'
+    )
+    list_filter = ('rating', 'certificate', 'type')
     search_fields = ('title',)
 
     def get_queryset(self, request):
-        return super(FikmworkAdmin, self).get_queryset(request).prefetch_related('person', 'genre')
+        return super(FilmWorkAdmin, self).get_queryset(request).prefetch_related('person', 'genre')

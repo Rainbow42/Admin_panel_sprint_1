@@ -1,328 +1,169 @@
-import json
 import sqlite3
 from dataclasses import astuple
-from datetime import datetime
-from typing import List, Union
+from pprint import pprint
+from typing import List, Tuple
 
 import psycopg2
 from psycopg2.extensions import connection as _connection
 from psycopg2.extras import DictCursor
 
 from sqlite_to_postgres.db_settings import DSL
-from sqlite_to_postgres.tabels_db_ps import FilmWork, FilmWorkGenre, Genre, \
-    Person, FilmWorkPersons
-from sqlite_to_postgres.tables_db_sqlite import Movies, FilmRoles
+from sqlite_to_postgres.tabels_db_ps import (FilmWork, FilmWorkGenre,
+                                             FilmWorkPersons, Genre, Person)
 
 
 class SQLiteLoader:
-    """Выгружает данные из бд и нормализуется под новую схему"""
-    actors = dict()  # можно было бы создать словарь person,
-    # но деление в дальнейшем упростит проставление enum
-    writers = dict()
-    genre = dict()
-    directions = dict()
 
     def __init__(self, connection: sqlite3.Connection):
         self.cur = connection.cursor()
 
-    def _duplicate_protection(self, person: FilmRoles) -> Union[
-        FilmRoles, None]:
-        # используем словарь чтобы не создавать в дальнейшем дубли
-        if person_hash := self.actors.get(person.name):
-            return person_hash
-        elif person_hash := self.writers.get(person.name):
-            return person_hash
-        elif person_hash := self.directions.get(person.name):
-            return person_hash
-        return None
-
-    def _get_writers(self, movie: Movies):
-        if not movie.writers:
-            return list()
-
-        writers_ids = list()
-        writers = json.loads(movie.writers)
-        for writer in writers:
-            writers_ids.append(writer.get("id"))
-        result_query = self.cur.execute(
-            f"select name from writers where id in {tuple(writers_ids)};")
-        writers = set(result_query.fetchall())
-
-        result = list()
-        for name in writers:
-            if name[0] == 'N/A':
-                continue
-            writer = FilmRoles(name=name[0])
-            writer.id = str(writer.id)
-            person = self._duplicate_protection(writer)
-            if not person:
-                self.writers[writer.name] = writer
-                result.append(writer)
-                continue
-            result.append(person)
-        return result
-
-    def _get_writer(self, movie: Movies) -> Union[FilmRoles, None]:
-        if not movie.writer:
-            return None
+    def _get_person(self, limit: int, offset: int) -> List[Person]:
         result = self.cur.execute(
-            "select name from writers where id=:writer_id;",
-            dict(writer_id=movie.writer))
-        writer = result.fetchall()
-        if writer[0][0] == 'N/A':
-            return None
-        writer = FilmRoles(name=writer[0][0])
-        writer.id = str(writer.id)
-        # берем из словаря что не создать дублей в бд
-        person = self._duplicate_protection(writer)
-        if not person:
-            self.directions[writer.name] = writer
-            return writer
-        return person
+            "select * from person limit :limit offset :offset",
+            dict(limit=limit, offset=offset))
+        return [Person(
+            id=person[0],
+            first_name=person[1].split(' ')[0],
+            last_name=' '.join(person[1].split(' ')[1:]),
+            patronymic=None,
+            birthdate=person[2],
+            created_at=person[3],
+            updated_at=person[4]
+        ) for person in result]
 
-    def _get_actor(self, movie: Movies) -> Union[List[FilmRoles], None]:
+    def _get_genres(self, limit: int, offset: int) -> List[Genre]:
         result = self.cur.execute(
-            "select actor_id from movie_actors where movie_id = :movie_id",
-            dict(movie_id=movie.id))
-        actor_ids = result.fetchall()
-        if not actor_ids:
-            return None
-        actors_ids = list()
-        for id in actor_ids:
-            actors_ids.append(str(id[0][0]))
+            "select * from genre limit :limit offset :offset",
+            dict(limit=limit, offset=offset))
+        return [Genre(
+            id=genre[0],
+            name=genre[1],
+            description=genre[2],
+            created_at=genre[3],
+            updated_at=genre[4]
+        ) for genre in result]
 
-        if len(actors_ids) >= 2:
-            result = self.cur.execute(
-                f"select name from actors where id in {tuple(actors_ids)};")
-        else:
-            result = self.cur.execute(
-                f"select name from actors where id = {actors_ids[0]};")
+    def _get_genre_film_work(self, limit: int, offset: int) \
+            -> List[FilmWorkGenre]:
+        result = self.cur.execute(
+            "select * from genre_film_work limit :limit offset :offset",
+            dict(limit=limit, offset=offset))
+        return [FilmWorkGenre(
+            id=genre[0],
+            film_work_id=genre[1],
+            genre_id=genre[2],
+            created_at=genre[3]
+        ) for genre in result]
 
-        actors = result.fetchall()
+    def _get_person_film_work(self, limit: int, offset: int) \
+            -> List[FilmWorkPersons]:
+        result = self.cur.execute(
+            "select * from person_film_work limit :limit offset :offset",
+            dict(limit=limit, offset=offset))
+        return [FilmWorkPersons(
+            id=person[0],
+            film_work_id=person[1],
+            person_id=person[2],
+            role=person[3],
+            created_at=person[4]
+        ) for person in result]
 
-        if not actors:
-            return list()
+    def _get_film_work(self, limit: int, offset: int) -> List[FilmWork]:
+        result = self.cur.execute(
+            "select * from film_work limit :limit offset :offset",
+            dict(limit=limit, offset=offset))
+        return [FilmWork(
+            id=film[0],
+            title=film[1],
+            description=film[2],
+            creation_date=film[3],
+            certificate=film[4],
+            file_path=film[5],
+            rating=film[6],
+            type=film[7],
+            created_at=film[8],
+            updated_at=film[9]
+        ) for film in result]
 
-        result = list()
-        for actor in actors:
-            actor = FilmRoles(name=actor[0])
-            actor.id = str(actor.id)
-            person = self._duplicate_protection(actor)
-            if not person:
-                self.actors[actor.name] = actor
-                result.append(actor)
-                continue
-            result.append(person)
-        return result
-
-    def _get_genres(self, movie: Movies) -> List:
-        result = list()
-        genres = [genre.replace(' ', '') for genre in movie.genre.split(',')]
-        for genre in set(genres):
-            genre = Genre(title=genre)
-            genre.id = str(genre.id)
-            # используем словарь чтобы не создавать в дальнейшем дубли
-            if genre_hash := self.genre.get(genre.title):
-                result.append(genre_hash)
-            else:
-                self.genre[genre.title] = genre
-                result.append(genre)
-
-        return result
-
-    def _get_direction(self, movie: Movies) -> Union[List[FilmRoles], None]:
-        if movie.director == 'N/A':
-            return None
-        directions = movie.director.split(", ")
-        result = list()
-        for direction in directions:
-            direction = FilmRoles(name=direction)
-            direction.id = str(direction.id)
-            person = self._duplicate_protection(direction)
-            if not person:
-                self.directions[direction.name] = direction
-                result.append(direction)
-                continue
-            result.append(person)
-        return result
-
-    def load_movies(self, limit: int, offset: int) -> List[Movies]:
-        result = self.cur.execute("select * from movies limit :limit offset :offset", dict(limit=limit, offset=offset))
-        movies = list()
-
-        for rows in result.fetchall():
-            movie = Movies(
-                id=rows[0],
-                genre=rows[1],
-                director=rows[2],
-                writer=rows[3],
-                title=rows[4],
-                plot=rows[5],
-                ratings="NULL" if not rows[6] else rows[6],
-                imdb_rating=rows[7],
-                writers=rows[8]
-            )
-            movie.director = self._get_direction(movie)
-            movie.genre = self._get_genres(movie)
-            movie.actors = self._get_actor(movie)
-            writers_ids = self._get_writers(movie)
-            writer_id = self._get_writer(movie)
-
-            if writer_id:
-                writers_ids.append(writer_id)
-
-            movie.writers = writers_ids  # m2m
-            movies.append(movie)
-
-        return movies
+    def load_movies(self, limit: int, offset: int) -> Tuple:
+        return (
+            self._get_person(limit, offset),
+            self._get_film_work(limit, offset),
+            self._get_genre_film_work(limit, offset),
+            self._get_person_film_work(limit, offset),
+            self._get_genres(limit, offset)
+        )
 
 
 class PostgresSaver:
-    film_work = list()
-    genre = list()
-    writers_person = list()
-    actors_person = list()
-    direction_person = list()
-
-    actors_film = list()  # aтрибуты для m2m
-    genre_film = list()
-    writer_film = list()
-    direction_film = list()
 
     def __init__(self, pg_conn: _connection):
         self.cur = pg_conn.cursor()
 
-    def _processing_data(self, data: List) -> None:
-        for movie in data:
-            # так как данные ненормальзирваные
-            # и могут встречаться строки вида ('N/A')
-            film = FilmWork(
-                title=movie.title,
-                type='series',
-                description=None if movie.plot == 'N/A' else movie.plot,
-                ratings=None if movie.ratings == 'N/A' else movie.ratings,
-                imdb_rating=None if movie.imdb_rating == 'N/A' else float(
-                    movie.imdb_rating),
-            )
-
-            film.id = str(film.id)
-            if movie.director:
-                for director in movie.director:
-                    director_person = FilmWorkPersons(
-                        film_work_id=film.id,
-                        person_id=director.id,
-                        type_person="directions")  # m2m
-
-                    self.direction_film.append(director_person)
-
-            for writer in movie.writers:  # m2m
-                writer_person = FilmWorkPersons(
-                    film_work_id=film.id,
-                    person_id=writer.id,
-                    type_person='writers'
-                )
-                self.writer_film.append(writer_person)
-
-            for actor in movie.actors:  # m2m
-                actor_person = FilmWorkPersons(
-                    film_work_id=film.id,
-                    person_id=actor.id,
-                    type_person='actors'
-                )
-                self.actors_film.append(actor_person)
-
-            for genre in movie.genre:  # m2m
-                genre_film = FilmWorkGenre(
-                    film_work_id=film.id,
-                    genre_id=genre.id
-                )
-                self.genre_film.append(genre_film)
-                self.genre.append(genre)
-
-            self.film_work.append(film)
-            self.writers_person.extend(movie.writers)
-            self.actors_person.extend(movie.actors)
-            if movie.director:
-                self.direction_person.extend(movie.director)
-
-    def _insert_film(self) -> None:
-        for film in self.film_work:
+    def _insert_film(self, film_work: List[FilmWork]) -> None:
+        for film in film_work:
             insert = """
-                INSERT INTO content.film_work(title, description, imdb_rating, ratings, type, id)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO content.film_work(title, description, creation_date, 
+                rating, certificate, file_path, type, created_at, updated_at, id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
             """
-            film.ratings = None
             self.cur.execute(insert, astuple(film))
 
     def _insert_persons(self, persons: List[Person]) -> None:
         for person in persons:
             insert = """
-                INSERT INTO content.person(first_name, last_name, patronymic, birthdate, id)
+                INSERT INTO content.person(first_name, last_name, patronymic, birthdate, id, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT DO NOTHING;
+            """
+            self.cur.execute(insert, astuple(person))
+
+    def _insert_film_person(self, film_persons: List[FilmWorkPersons]) -> None:
+        for person in film_persons:
+            insert = """
+                INSERT INTO content.person_film_work(film_work_id, person_id, role, created_at, id)
                 VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
             """
             self.cur.execute(insert, astuple(person))
 
-    def _insert_film_person(self) -> None:
-        film_persons = [*self.actors_film,
-                        *self.writer_film,
-                        *self.direction_film]
-        for person in film_persons:
+    def _insert_genre(self, genre: List[Genre]) -> None:
+        for genre in genre:
             insert = """
-                INSERT INTO content.film_work_persons_type(film_work_id, person_id, type_person)
-                VALUES (%s, %s, %s)
-                ON CONFLICT DO NOTHING;
-            """
-            self.cur.execute(insert, astuple(person))
-
-    def _insert_genre(self) -> None:
-        for genre in self.genre:
-            insert = """
-                INSERT INTO content.genre(title, id)
-                VALUES (%s, %s)
+                INSERT INTO content.genre(name, description, id, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
             """
             self.cur.execute(insert, astuple(genre))
 
-        for genre_film in self.genre_film:
+    def _insert_genre_film_work(self, genre_film: List[FilmWorkGenre]) -> None:
+        for genre_film in genre_film:
             insert = """
-                INSERT INTO content.film_work_genre(film_work_id, genre_id)
-                VALUES (%s, %s)
+                INSERT INTO content.genre_film_work(film_work_id, genre_id, created_at, id)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
             """
             self.cur.execute(insert, astuple(genre_film))
 
-    def normalization_person(self) -> List[Person]:
-        normalization = list()
-        persons = [*self.writers_person,
-                   *self.actors_person,
-                   *self.direction_person]
-        for writer in persons:
-            name = writer.name.split(' ')
-            person = Person(
-                first_name=name[0],
-                last_name=" ".join(name[1:]),
-                patronymic=None,
-                birthdate=datetime.now().date(),
-                id=writer.id
-            )
-            normalization.append(person)
-        return normalization
-
     def truncate(self):
-        for table in ["film_work", "film_work_genre", "film_work_persons_type",
+        for table in ["film_work", "genre_film_work", "person_film_work",
                       "genre", "person"]:
             self.cur.execute("TRUNCATE content.{} CASCADE;".format(table))
 
-    def save_all_data(self, data: list):
-        self._processing_data(data)
-        persons = self.normalization_person()
-
-        self._insert_film()
-        self._insert_persons(persons)
-        self._insert_film_person()
-        self._insert_genre()
+    def save_all_data(self, data: Tuple):
+        insert_operation = (
+            self._insert_persons,
+            self._insert_film,
+            self._insert_genre_film_work,
+            self._insert_film_person,
+            self._insert_genre
+        )
+        for tale_data, insert_method in zip(data, insert_operation):
+            try:
+                insert_method(tale_data)
+            except Exception as ex:
+                pprint(ex)
 
 
 def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
@@ -331,11 +172,22 @@ def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
     sqlite_loader = SQLiteLoader(connection)
 
     cur = connection.cursor()
-    cur.execute("select count(*) from movies")
-    movies_count, = cur.fetchone()
 
+    cur.execute("select count(*) from film_work")
+    film_work_count, = cur.fetchone()
+    cur.execute("select count(*) from genre")
+    genre_count, = cur.fetchone()
+    cur.execute("select count(*) from genre_film_work")
+    genre_film_work_count, = cur.fetchone()
+    cur.execute("select count(*) from person")
+    person_count, = cur.fetchone()
+    cur.execute("select count(*) from person_film_work")
+    person_film_work_count, = cur.fetchone()
+
+    max_count = max(film_work_count, genre_count, genre_film_work_count,
+                    person_film_work_count, person_count)
     limit = 100
-    for total in range(0, movies_count, 100):
+    for total in range(0, max_count, 100):
         offset = total
         data = sqlite_loader.load_movies(limit=limit, offset=offset)
         postgres_saver.save_all_data(data)

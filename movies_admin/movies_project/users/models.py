@@ -61,13 +61,13 @@ class Users(AbstractBaseUser):
     def __str__(self):
         return f"{self.username}"
 
+    def __unicode__(self):
+        if self.last_name and self.first_name and self.username:
+            return f'{self.last_name} {self.first_name} ({self.username})'
+        return str(self.username)
+
     class Meta:
         index_together = ['first_name', 'last_name', 'username']
         verbose_name = 'user'
         verbose_name_plural = 'users'
         db_table = '"content"."users"'
-
-    def __unicode__(self):
-        if self.last_name and self.first_name and self.username:
-            return f'{self.last_name} {self.first_name} ({self.username})'
-        return str(self.username)

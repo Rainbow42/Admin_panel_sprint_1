@@ -25,7 +25,7 @@ class Profession(models.TextChoices):
 
 
 class Person(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = models.UUIDField(primary_key=True, default=uuid4)
     first_name = models.CharField(
         verbose_name='Имя',
         max_length=250
@@ -59,7 +59,7 @@ class Person(models.Model):
         db_table = '"content"."person"'
 
 
-class Genre(models.Model, TimeStampedMixin):
+class Genre(TimeStampedMixin, models.Model):
     id = models.UUIDField(
         default=uuid4,
         unique=True,
@@ -82,7 +82,7 @@ class Genre(models.Model, TimeStampedMixin):
         db_table = 'content"."genre'
 
 
-class FilmWork(models.Model, TimeStampedMixin):
+class FilmWork(TimeStampedMixin,models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     title = models.CharField(
         max_length=255,

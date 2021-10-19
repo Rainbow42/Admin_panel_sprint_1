@@ -1,13 +1,65 @@
-import uuid
 from uuid import uuid4
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from persons.models import Person
 
 
-class Genre(models.Model):
+class TimeStampedMixin(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class FilmType(models.TextChoices):
+    SERIES = 'series'
+    FILM = 'movie'
+
+
+class Profession(models.TextChoices):
+    ACTORS = 'actor'
+    DIRECTOR = 'director'
+    WRITER = 'writer'
+
+
+class Person(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    first_name = models.CharField(
+        verbose_name='Имя',
+        max_length=250
+    )
+    last_name = models.CharField(
+        max_length=250,
+        blank=True,
+        verbose_name='Фамилия'
+    )
+    patronymic = models.CharField(
+        max_length=250,
+        blank=True,
+        null=True,
+        verbose_name='Отчество'
+    )
+    birthdate = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='День рождения'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+    class Meta:
+        index_together = ['first_name', 'last_name', 'patronymic']
+        verbose_name = 'person'
+        verbose_name_plural = 'persons'
+        db_table = '"content"."person"'
+
+
+class Genre(models.Model, TimeStampedMixin):
     id = models.UUIDField(
         default=uuid4,
         unique=True,
@@ -19,8 +71,6 @@ class Genre(models.Model):
         blank=True,
         null=True
     )
-    created_at = models.DateTimeField(auto_now_add=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
         return str(self.name)
@@ -32,12 +82,8 @@ class Genre(models.Model):
         db_table = 'content"."genre'
 
 
-class FilmWork(models.Model):
-    class FilmType(models.TextChoices):
-        SERIES = 'series'
-        FILM = 'movie'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+class FilmWork(models.Model, TimeStampedMixin):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     title = models.CharField(
         max_length=255,
         db_index=True,
@@ -49,7 +95,7 @@ class FilmWork(models.Model):
         verbose_name="Описание"
     )
     rating = models.FloatField(
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
         blank=True,
         null=True,
         verbose_name="Рейтинг"
@@ -90,14 +136,6 @@ class FilmWork(models.Model):
         choices=FilmType.choices,
         verbose_name='Тип',
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        null=True
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        null=True
-    )
 
     def __str__(self):
         return f"{self.title} {self.type}"
@@ -112,7 +150,7 @@ class FilmWork(models.Model):
 class FilmWorkGenres(models.Model):
     id = models.UUIDField(
         primary_key=True,
-        default=uuid.uuid4
+        default=uuid4
     )
     film_work = models.ForeignKey(
         FilmWork,
@@ -123,22 +161,18 @@ class FilmWorkGenres(models.Model):
         on_delete=models.CASCADE
     )
     created_at = models.DateTimeField(
-        auto_now_add=True,
-        null=True
+        auto_now_add=True
     )
 
     class Meta:
+        index_together = ['film_work', 'genre']
         verbose_name = _('film genre')
         verbose_name_plural = _('film genres')
         db_table = '"content"."genre_film_work"'
 
 
 class FilmWorkPersonsType(models.Model):
-    class Profession(models.TextChoices):
-        ACTORS = 'actor'
-        DIRECTOR = 'director'
-        WRITER = 'writer'
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = models.UUIDField(primary_key=True, default=uuid4)
     film_work = models.ForeignKey(
         FilmWork,
         on_delete=models.CASCADE,
@@ -156,9 +190,9 @@ class FilmWorkPersonsType(models.Model):
         verbose_name='Профессия',
     )
     created_at = models.DateTimeField(
-        auto_now_add=True,
-        null=True
+        auto_now_add=True
     )
 
     class Meta:
+        index_together = ['film_work', 'person']
         db_table = '"content"."person_film_work"'

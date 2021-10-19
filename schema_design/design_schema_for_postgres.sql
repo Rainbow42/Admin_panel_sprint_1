@@ -2,9 +2,6 @@ CREATE SCHEMA IF NOT EXISTS content;
 SET search_path TO content,public;
 
 
-CREATE TYPE type_movie AS ENUM ('series', 'movie');
-CREATE TYPE role AS ENUM ('director', 'actor', 'writer');
-
 CREATE TABLE IF NOT EXISTS content.person(
     id uuid PRIMARY KEY,
     first_name character varying(255) NOT NULL,
@@ -19,7 +16,7 @@ CREATE TABLE IF NOT EXISTS content.person_film_work (
     id uuid PRIMARY KEY,
     film_work_id uuid NOT NULL,
     person_id uuid NOT NULL,
-    role role NOT NULL,
+    role character varying(255) NOT NULL,
     created_at timestamp with time zone NOT NULL
 );
 
@@ -31,7 +28,7 @@ CREATE TABLE IF NOT EXISTS content.film_work (
     rating FLOAT,
     certificate character varying(255),
     file_path TEXT,
-    type type_movie NOT NULL,
+    type  character varying(255) NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL
 );
@@ -52,11 +49,8 @@ CREATE TABLE IF NOT EXISTS content.genre_film_work (
     created_at timestamp with time zone NOT NULL
 );
 
-CREATE SEQUENCE content.film_work_person_id_seq AS integer;
-CREATE SEQUENCE content.film_work_genre_id_seq AS integer;
+CREATE INDEX film_work_genre_film_id_idx ON content.genre_film_work(film_work_id);
+CREATE INDEX film_work_genre_id_idx ON content.genre_film_work(genre_id);
 
-ALTER SEQUENCE content.film_work_person_id_seq owned BY content.person_film_work.id;
-ALTER SEQUENCE content.film_work_genre_id_seq owned BY content.genre_film_work.id;
-
-ALTER TABLE content.person_film_work ALTER column id SET default nextval('content.film_work_person_id_seq'::regclass);
-ALTER TABLE content.genre_film_work ALTER column id set default nextval('content.film_work_genre_id_seq'::regclass);
+CREATE INDEX person_film_work_id_idx ON content.person_film_work(film_work_id);
+CREATE INDEX film_work_person_id_idx ON content.person_film_work(person_id);

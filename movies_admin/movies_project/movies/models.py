@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 
 
@@ -59,7 +60,7 @@ class Person(models.Model):
         db_table = '"content"."person"'
 
 
-class Genre(TimeStampedMixin, models.Model):
+class Genre(TimeStampedMixin):
     id = models.UUIDField(
         default=uuid4,
         unique=True,
@@ -82,7 +83,7 @@ class Genre(TimeStampedMixin, models.Model):
         db_table = 'content"."genre'
 
 
-class FilmWork(TimeStampedMixin,models.Model):
+class FilmWork(TimeStampedMixin):
     id = models.UUIDField(primary_key=True, default=uuid4)
     title = models.CharField(
         max_length=255,
@@ -165,7 +166,10 @@ class FilmWorkGenres(models.Model):
     )
 
     class Meta:
-        index_together = ['film_work', 'genre']
+        constraints = [
+            UniqueConstraint(fields=['film_work', 'genre'], name='film_work_genre')
+        ]
+        index_together = ('film_work', 'genre')
         verbose_name = _('film genre')
         verbose_name_plural = _('film genres')
         db_table = '"content"."genre_film_work"'
@@ -194,5 +198,9 @@ class FilmWorkPersonsType(models.Model):
     )
 
     class Meta:
-        index_together = ['film_work', 'person']
+        constraints = [
+            UniqueConstraint(fields=['film_work', 'person'],
+                             name='film_work_person')
+        ]
+        index_together = ('film_work', 'person')
         db_table = '"content"."person_film_work"'

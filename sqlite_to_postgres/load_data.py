@@ -12,7 +12,7 @@ from sqlite_to_postgres.db_settings import DSL
 from sqlite_to_postgres.tables_db_ps import (FilmWork, FilmWorkGenre,
                                              FilmWorkPersons, Genre, Person)
 
-logger = logging.getLogger('log')
+logger = logging.getLogger('log.load_from_sqlite')
 logger.setLevel(logging.INFO)
 
 TABLE_TO_SCHEMA = {
@@ -84,8 +84,11 @@ def load_from_sqlite(connection: sqlite3.Connection, pg_conn: _connection):
     postgres_saver = PostgresSaver(pg_conn)
     sqlite_loader = SQLiteLoader(connection)
     for table_name, schema in TABLE_TO_SCHEMA.items():
-        data = sqlite_loader.get_data(table_name, schema)
-        postgres_saver.create_data(data, table_name, schema)
+        try:
+            data = sqlite_loader.get_data(table_name, schema)
+            postgres_saver.create_data(data, table_name, schema)
+        except Exception as exp:
+            logger.info(exp)
 
 
 if __name__ == '__main__':
